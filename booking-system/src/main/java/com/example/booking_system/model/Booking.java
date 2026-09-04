@@ -45,7 +45,7 @@ public class Booking {
         return lockExpiresAt;
     }
 
-    public String getKey() {
+    public String getIdempotencyKey() {
         return idempotencyKey;
     }
 
@@ -74,7 +74,7 @@ public class Booking {
         this.lockExpiresAt = lockExpiresAt;
     }
 
-    public void setKey( String idempotencyKey ) {
+    public void setIdempotencyKey( String idempotencyKey ) {
         this.idempotencyKey = idempotencyKey;
     }
 

@@ -6,11 +6,15 @@ import com.example.booking_system.model.Seat;
 import com.example.booking_system.model.Show;
 import com.example.booking_system.model.User;
 import com.example.booking_system.repository.BookingRepository;
+import com.example.booking_system.model.SeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.booking_system.exception.ResourceNotFoundException;
 import com.example.booking_system.exception.SeatUnavailableException;
+import java.util.Optional;
+import java.util.List;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.LocalDateTime;
 
@@ -27,7 +31,12 @@ public class BookingService {
     }
 
     @Transactional
-    public Booking createBooking( Long seatId, User user, Show show ) {
+    public Booking createBooking( Long seatId, User user, Show show , String idempotencyKey ) {
+
+        Optional<Booking> existingBooking = bookingRepository.findByIdempotencyKey(idempotencyKey);
+        if (existingBooking.isPresent()) {
+            return existingBooking.get();
+        }
         
         Seat seat = seatService.lockSeat( seatId );
 
@@ -37,9 +46,53 @@ public class BookingService {
         booking.setUser( user );
         booking.setShow( show );
         booking.setSeat( seat );
+        booking.setIdempotencyKey(idempotencyKey);
 
         return bookingRepository.save(booking);
 
+    }
+
+    @Transactional
+    public Booking processPayment( Long bookingId ) {
+
+        Booking booking = bookingRepository.findById( bookingId ).orElseThrow( () -> new ResourceNotFoundException("Booking ID Not Found."));
+
+        boolean success = Math.random() > 0.3;
+
+        if ( success ) {
+            booking.setStatus( BookingStatus.CONFIRMED );
+            return bookingRepository.save(booking);
+        } else {
+            Seat seat = booking.getSeat();
+            if (seat != null) {
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+            }
+            booking.setStatus( BookingStatus.CANCELLED );
+            return bookingRepository.save(booking);
+        }
+    }
+
+    @Scheduled( fixedRate = 60000)
+    @Transactional
+    public void expireStaleBookings() {
+
+        List<Booking> expiredBookings = bookingRepository.findByStatusAndLockExpiresAtBefore( BookingStatus.PENDING , LocalDateTime.now() );
+
+        for (Booking expiredBooking : expiredBookings) {
+            expiredBooking.setStatus(BookingStatus.EXPIRED);
+            
+            Seat seat = expiredBooking.getSeat();
+            if (seat != null) {
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+            }
+            
+            bookingRepository.save(expiredBooking);
+        }
+
+    }
+
+    public List<Booking> getAllBookings() {
+        return bookingRepository.findAll();
     }
 
 }

@@ -9,6 +9,8 @@ import com.example.booking_system.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/bookings")
 public class BookingController {
@@ -29,13 +31,27 @@ public class BookingController {
 
         User user = userService.getUserById( request.getUserId() );
         Show show = showService.getShowById( request.getShowId() );
-        return bookingService.createBooking( request.getSeatId(), user, show );
+        return bookingService.createBooking( request.getSeatId(), user, show , request.getIdempotencyKey() );
     }
+
+    @PostMapping("/{id}/pay")
+    public Booking processPayment( @PathVariable Long id ) {
+
+        return bookingService.processPayment( id );
+
+    }
+
+    @GetMapping
+    public List<Booking> getAllBooking() {
+        return bookingService.getAllBookings();
+    }
+
     public static class BookingRequest {
 
         Long seatId;
         Long userId;
         Long showId;
+        String idempotencyKey;
 
         //Getters
         public Long getSeatId() {
@@ -50,6 +66,10 @@ public class BookingController {
             return showId;
         }
 
+        public String getIdempotencyKey(){
+            return idempotencyKey;
+        }
+
         //Setters
         public void setSeatId( Long seatId ){
             this.seatId = seatId;
@@ -59,6 +79,9 @@ public class BookingController {
         }
         public void setShowId( Long showId ) {
             this.showId = showId;
+        }
+        public void setIdempotencyKey( String idempotencyKey ) {
+            this.idempotencyKey = idempotencyKey;
         }
 
     }

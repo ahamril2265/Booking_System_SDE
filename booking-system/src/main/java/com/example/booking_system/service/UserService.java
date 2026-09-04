@@ -25,4 +25,13 @@ public class UserService {
         return user;
     }
 
+    public User validateLogin( String email, String password ) {
+        User user = userRepository.findByEmail( email ).orElseThrow( () -> new ResourceNotFoundException("Invalid Credentials"));
+        if (!user.getPassword().equals(password)) {
+            throw new ResourceNotFoundException("Invalid credentials");
+        }
+
+        return user;
+    }
+
 }
