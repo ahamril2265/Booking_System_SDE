@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.booking_system.exception.ResourceNotFoundException;
 import com.example.booking_system.exception.SeatUnavailableException;
+import com.example.booking_system.exception.BookingNotPayableException;
 import java.util.Optional;
 import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -55,7 +56,15 @@ public class BookingService {
     @Transactional
     public Booking processPayment( Long bookingId ) {
 
-        Booking booking = bookingRepository.findById( bookingId ).orElseThrow( () -> new ResourceNotFoundException("Booking ID Not Found."));
+        // Row lock serialises payment with the expiry job, so the status read below can't go stale.
+        Booking booking = bookingRepository.findByIdForUpdate( bookingId ).orElseThrow( () -> new ResourceNotFoundException("Booking ID Not Found."));
+
+        if ( booking.getStatus() != BookingStatus.PENDING ) {
+            throw new BookingNotPayableException("Booking is " + booking.getStatus() + " and cannot be paid.");
+        }
+        if ( booking.getExpireTime() != null && booking.getExpireTime().isBefore( LocalDateTime.now() ) ) {
+            throw new BookingNotPayableException("Booking hold has expired and cannot be paid.");
+        }
 
         boolean success = Math.random() > 0.3;
 

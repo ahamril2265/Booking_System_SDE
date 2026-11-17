@@ -34,4 +34,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody);
     }
 
+    @ExceptionHandler( BookingNotPayableException.class )
+    public ResponseEntity<Map<String, Object>> handleBookingNotPayable( BookingNotPayableException ex ) {
+        Map<String, Object> errorBody = new LinkedHashMap<>();
+        errorBody.put("timestamp" , LocalDateTime.now() );
+        errorBody.put("status" , 409 );
+        errorBody.put("error" , ex.getMessage() );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody);
+    }
+
 }
